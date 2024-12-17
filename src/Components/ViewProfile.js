@@ -154,7 +154,8 @@ export default function ViewProfile() {
           onClick={() =>
             navigate("/bookinghistory", {
               state: {
-                type: userData?.username ? "groundOwner" : "customer",
+                id: userData?.id, // Pass user id
+                type: userData?.isGroundOwner ? "groundOwner" : "customer", // Determine user type
               },
             })
           }

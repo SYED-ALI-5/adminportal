@@ -4,123 +4,112 @@ import auth_bg from "../Assets/Owner_Auth_Bg.png";
 
 export default function BookingHistory() {
   const location = useLocation();
+  const { id, type } = location.state; // Extract user info passed from ViewProfile
 
-  // Determine the type of data to show based on the URL state
-  const isGroundOwner = location.state?.type === "groundOwner";
-
-  // State to hold booking data
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true); // Loading state
-  const [error, setError] = useState(null); // Error state
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch booking data dynamically
-    const fetchData = async () => {
+    const fetchBookingHistory = async () => {
       try {
-        setLoading(true); // Set loading to true
         const response = await fetch(
-          isGroundOwner
-            ? "/api/ground-owner/bookings" // Endpoint for ground owner
-            : "/api/customer/bookings" // Endpoint for customer
+          `/api/booking-history?id=${id}&type=${type}`
         );
         if (!response.ok) {
-          throw new Error("Failed to fetch booking data");
+          throw new Error("Failed to fetch booking history");
         }
-        const result = await response.json();
-        setData(result);
-      } catch (err) {
-        setError(err.message);
+
+        const bookings = await response.json();
+        setData(bookings);
+      } catch (error) {
+        console.error("Error fetching booking history:", error);
       } finally {
-        setLoading(false); // Set loading to false
+        setLoading(false);
       }
     };
 
-    fetchData();
-  }, [isGroundOwner]);
+    fetchBookingHistory();
+  }, [id, type]);
 
   if (loading) {
-    return <p style={{ color: "white", textAlign: "center" }}>Loading...</p>;
-  }
-
-  if (error) {
-    return (
-      <p style={{ color: "red", textAlign: "center" }}>
-        Error: {error}. Please try again later.
-      </p>
-    );
+    return <div className="text-center my-5">Loading booking history...</div>;
   }
 
   return (
-    <div
-      style={{
-        backgroundImage: `url(${auth_bg})`,
-      }}
-    >
+    <div style={{ backgroundImage: `url(${auth_bg})` }}>
       <h2 style={{ color: "rgb(57 171 148)" }} className="py-5 text-center">
         Booking History
       </h2>
       <div className="container d-flex flex-column align-items-center justify-content-center pb-5">
-        {data.map((item) => (
-          <div
-            key={item.id}
-            style={{ border: "2px solid #55ad9b", borderRadius: "10px", color: "white" }}
-            className="d-flex justify-content-center align-items-start my-2 py-2 px-5"
-          >
-            <div className="user-details">
-              <div className="user-specific">
-                <span className="py-2">
-                  <b>
-                    {isGroundOwner ? "Ground Owner Name" : "Customer Name"}
-                    :&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                  </b>
-                  {item.name}
-                </span>
-              </div>
-              <div className="user-specific">
-                <span className="py-2">
-                  <b>Email:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b>
-                  {item.email}
-                </span>
-              </div>
-              <div>
-                <span>
-                  <b>Booking Time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b>
-                  {item.time}
-                </span>
-              </div>
-              <div>
-                <span>
-                  <b>Booking Date:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b>
-                  {item.date}
-                </span>
-              </div>
-              <div className="user-specific">
-                <span>
-                  <b>Phone Number:&nbsp;&nbsp;</b>
-                  {item.phone}
-                </span>
-              </div>
-              {!isGroundOwner && item.stadium && (
-                <div>
-                  <span>
+        {data.length > 0 ? (
+          data.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                border: "2px solid #55ad9b",
+                borderRadius: "10px",
+                color: "white",
+              }}
+              className="d-flex justify-content-center align-items-start my-2 py-2 px-5"
+            >
+              <div className="user-details">
+                <div className="user-specific">
+                  <span className="py-2">
                     <b>
-                      Stadium Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                      {type === "groundOwner"
+                        ? "Customer Name"
+                        : "Ground Owner Name"}
+                      :&nbsp;&nbsp;
                     </b>
-                    {item.stadium}
+                    {item.customer_name || item.owner_name}
                   </span>
                 </div>
-              )}
-              {!isGroundOwner && item.location && (
                 <div>
                   <span>
-                    <b>Location:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b>
-                    {item.location}
+                    <b>Email:&nbsp;&nbsp;</b>
+                    {item.email}
                   </span>
                 </div>
-              )}
+                <div>
+                  <span>
+                    <b>Phone Number:&nbsp;&nbsp;</b>
+                    {item.phone}
+                  </span>
+                </div>
+                <div>
+                  <span>
+                    <b>Booking Time:&nbsp;&nbsp;</b>
+                    {item.time}
+                  </span>
+                </div>
+                <div>
+                  <span>
+                    <b>Booking Date:&nbsp;&nbsp;</b>
+                    {item.date}
+                  </span>
+                </div>
+                {!type === "groundOwner" && item.stadium && (
+                  <div>
+                    <span>
+                      <b>Stadium Name:&nbsp;&nbsp;</b>
+                      {item.stadium}
+                    </span>
+                  </div>
+                )}
+                {!type === "groundOwner" && item.location && (
+                  <div>
+                    <span>
+                      <b>Location:&nbsp;&nbsp;</b>
+                      {item.location}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        ) : (
+          <div>No booking history found.</div>
+        )}
       </div>
     </div>
   );
