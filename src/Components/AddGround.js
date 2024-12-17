@@ -1,31 +1,64 @@
 import React, { useState } from "react";
 import Map from "./Map";
-import axios from "axios";
 
 export default function AddGround() {
   const [formData, setFormData] = useState({
-    name: "",
+    groundName: "",
     phone: "",
-    description: "",
+    groundDescription: "",
     latitude: "",
     longitude: "",
-    address: "",
+    addres: "",
     city: "",
     country: "",
-    price: "",
     images: [],
     dynamicFields: {
-      pitchTypes: [],
       stadiumFacilities: [],
       equipmentProvided: [],
     },
     stadiumType: "",
     sportsHours: "",
+    pitches: [
+      {
+        pitchName: "",
+        pitchDescription: "",
+        length: "",
+        width: "",
+        game_type: "",
+        price_per_60mins: "",
+        price_per_90mins: "",
+      },
+    ],
   });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+  };
+
+  const handlePitchChange = (index, e) => {
+    const { name, value } = e.target;
+    const updatedPitches = [...formData.pitches];
+    updatedPitches[index][name] = value;
+    setFormData({ ...formData, pitches: updatedPitches });
+  };
+
+  const addPitchField = () => {
+    setFormData((prevState) => ({
+      ...prevState,
+      pitches: [
+        ...prevState.pitches,
+        {
+          pitchName: "",
+          pitchDescription: "",
+          length: "",
+          width: "",
+          game_type: "",
+          price_per_60mins: "",
+          price_per_90mins: "",
+        },
+      ],
+    }));
   };
 
   const handleDynamicFieldChange = (e, fieldName, index) => {
@@ -53,35 +86,33 @@ export default function AddGround() {
     }));
   };
 
-  const handleImageUpload = async (e, index) => {
-    const file = e.target.files[0];
+  // Function to handle Base64 conversion of images
+  const handleImageChange = (e) => {
+    const files = e.target.files;
 
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64Image = reader.result.split(",")[1]; // Extract Base64 part
-        setFormData((prevData) => {
-          const updatedImages = [...prevData.images];
-          updatedImages[index] = base64Image; // Save Base64 string
-          return { ...prevData, images: updatedImages };
-        });
-      };
-      reader.readAsDataURL(file);
-    }
+    const imagePromises = Array.from(files).map((file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result); // Base64 string
+        reader.onerror = (error) => reject(error);
+      });
+    });
+
+    Promise.all(imagePromises)
+      .then((base64Images) => {
+        setFormData((prev) => ({
+          ...prev,
+          images: base64Images, // Store all images as Base64 strings
+        }));
+      })
+      .catch((error) => console.error("Image conversion error:", error));
   };
 
   const addImageField = () => {
     setFormData((prevData) => ({
       ...prevData,
-      images: [...prevData.images, null],
-    }));
-  };
-
-  const handleMapClick = (latitude, longitude) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      latitude,
-      longitude,
+      images: [...prevData.images, null], // Add a new empty slot
     }));
   };
 
@@ -89,33 +120,47 @@ export default function AddGround() {
     e.preventDefault();
 
     try {
-      const response = await axios.post("YOUR_API_ENDPOINT_HERE", formData, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      console.log("Form Data Submitted Successfully: ", response.data);
-      alert("Ground added successfully!");
+      // 1. Submit General Ground Data
+      const groundResponse = await axios.post(
+        "http://localhost:5000/api/ground",
+        formData
+      );
+      const groundId = groundResponse.data.groundId;
 
-      setFormData({
-        name: "",
-        phone: "",
-        description: "",
-        latitude: "",
-        longitude: "",
-        address: "",
-        city: "",
-        country: "",
-        price: "",
-        images: [],
-        dynamicFields: {
-          pitchTypes: [],
-          stadiumFacilities: [],
-          equipmentProvided: [],
-        },
-        stadiumType: "",
-        sportsHours: "",
-      });
+      // 2. Submit Stadium Facilities
+      if (formData.dynamicFields.stadiumFacilities.length > 0) {
+        await axios.post("http://localhost:5000/api/ground/facilities", {
+          groundId,
+          facilities: formData.dynamicFields.stadiumFacilities,
+        });
+      }
+
+      // 3. Submit Equipment Provided
+      if (formData.dynamicFields.equipmentProvided.length > 0) {
+        await axios.post("http://localhost:5000/api/ground/equipment", {
+          groundId,
+          equipment: formData.dynamicFields.equipmentProvided,
+        });
+      }
+
+      // 4. Submit Pitches
+      if (formData.pitches.length > 0) {
+        await axios.post("http://localhost:5000/api/ground/pitches", {
+          groundId,
+          pitches: formData.pitches,
+        });
+      }
+
+      // 5. Submit Images
+      if (formData.images.length > 0) {
+        const imageUrls = formData.images.map((image) => image.name); // Replace this with actual image URL
+        await axios.post("http://localhost:5000/api/ground/images", {
+          groundId,
+          images: imageUrls,
+        });
+      }
+
+      alert("Ground added successfully!");
     } catch (error) {
       console.error("Error submitting form data: ", error);
       alert("Failed to add ground. Please try again.");
@@ -131,15 +176,15 @@ export default function AddGround() {
         <form onSubmit={handleSubmit}>
           {/* Name */}
           <div className="mb-3">
-            <label htmlFor="name" className="form-label text-black">
+            <label htmlFor="groundName" className="form-label text-black">
               Ground Name
             </label>
             <input
               type="text"
               className="form-control"
-              id="name"
-              name="name"
-              value={formData.name}
+              id="groundName"
+              name="groundName"
+              value={formData.groundName}
               onChange={handleInputChange}
             />
           </div>
@@ -159,78 +204,135 @@ export default function AddGround() {
             />
           </div>
 
-          {/* Description */}
+          {/* Ground Description */}
           <div className="mb-3">
-            <label htmlFor="description" className="form-label text-black">
-              Description
+            <label
+              htmlFor="groundDescription"
+              className="form-label text-black"
+            >
+              Ground Description
             </label>
             <textarea
               className="form-control"
-              id="description"
-              name="description"
+              id="groundDescription"
+              name="groundDescription"
               rows="3"
-              value={formData.description}
+              value={formData.groundDescription}
               onChange={handleInputChange}
             ></textarea>
           </div>
 
-          {/* Pitch Types */}
-          <div className="d-flex flex-column">
-            <label className="form-label text-black">Pitch Types</label>
-
-            {/* Ensure at least one input field is always visible */}
-            {formData.dynamicFields.pitchTypes.length === 0 && (
-              <div className="d-flex mb-2">
-                <input
-                  type="text"
-                  className="form-control me-2"
-                  value="" // Empty input initially
-                  onChange={(e) => handleDynamicFieldChange(e, "pitchTypes", 0)}
-                />
+          {/* Pitches Section */}
+          <h3 className="mt-4 mb-3">Pitches</h3>
+          {formData.pitches.map((pitch, index) => (
+            <div key={index} className="border rounded p-3 mb-3 bg-light">
+              <h5>Pitch {index + 1}</h5>
+              <div className="row mb-2">
+                <div className="col-md-6">
+                  <label className="form-label text-black">Pitch Name</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="pitchName"
+                    value={pitch.pitchName}
+                    onChange={(e) => handlePitchChange(index, e)}
+                    placeholder="Enter pitch name"
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label text-black">Game Type</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="game_type"
+                    value={pitch.game_type}
+                    onChange={(e) => handlePitchChange(index, e)}
+                    placeholder="e.g., Football, Cricket"
+                  />
+                </div>
               </div>
-            )}
-
-            {/* Render existing input fields */}
-            {formData.dynamicFields.pitchTypes.map((value, index) => (
-              <div key={index} className="d-flex mb-2">
-                <input
-                  type="text"
-                  className="form-control me-2"
-                  value={value}
-                  onChange={(e) =>
-                    handleDynamicFieldChange(e, "pitchTypes", index)
-                  }
-                />
+              <div className="row mb-2">
+                <div className="col-md-6">
+                  <label className="form-label text-black">
+                    Length (meters)
+                  </label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    name="length"
+                    value={pitch.length}
+                    onChange={(e) => handlePitchChange(index, e)}
+                    placeholder="Enter length"
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label text-black">
+                    Width (meters)
+                  </label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    name="width"
+                    value={pitch.width}
+                    onChange={(e) => handlePitchChange(index, e)}
+                    placeholder="Enter width"
+                  />
+                </div>
               </div>
-            ))}
-          </div>
-          {/* Add button */}
+              <div className="row mb-2">
+                <div className="col-md-6">
+                  <label className="form-label text-black">
+                    Price per 60 mins
+                  </label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    name="price_per_60mins"
+                    value={pitch.price_per_60mins}
+                    onChange={(e) => handlePitchChange(index, e)}
+                    placeholder="Enter price (Rs)"
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label text-black">
+                    Price per 90 mins
+                  </label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    name="price_per_90mins"
+                    value={pitch.price_per_90mins}
+                    onChange={(e) => handlePitchChange(index, e)}
+                    placeholder="Enter price (Rs)"
+                  />
+                </div>
+              </div>
+              <div className="mb-2">
+                <label className="form-label text-black">
+                  Pitch Description
+                </label>
+                <textarea
+                  className="form-control"
+                  name="pitchDescription"
+                  value={pitch.pitchDescription}
+                  onChange={(e) => handlePitchChange(index, e)}
+                  rows="2"
+                  placeholder="Enter pitch description"
+                ></textarea>
+              </div>
+            </div>
+          ))}
           <button
             type="button"
-            className="mb-3 btn btn-primary"
-            onClick={() => addDynamicField("pitchTypes")}
+            className="btn btn-primary mb-3"
+            onClick={addPitchField}
           >
-            + Add
+            + Add Pitch
           </button>
 
           {/* Stadium Facilities */}
           <div className="d-flex flex-column">
             <label className="form-label text-black">Stadium Facilities</label>
-
-            {/* Ensure at least one input field is always visible */}
-            {formData.dynamicFields.stadiumFacilities.length === 0 && (
-              <div className="d-flex mb-2">
-                <input
-                  type="text"
-                  className="form-control me-2"
-                  value="" // Empty input initially
-                  onChange={(e) =>
-                    handleDynamicFieldChange(e, "stadiumFacilities", 0)
-                  }
-                />
-              </div>
-            )}
-
             {formData.dynamicFields.stadiumFacilities.map((value, index) => (
               <div key={index} className="d-flex mb-2">
                 <input
@@ -255,21 +357,6 @@ export default function AddGround() {
           {/* Equipment Provided */}
           <div className="d-flex flex-column">
             <label className="form-label text-black">Equipment Provided</label>
-
-            {/* Ensure at least one input field is always visible */}
-            {formData.dynamicFields.equipmentProvided.length === 0 && (
-              <div className="d-flex mb-2">
-                <input
-                  type="text"
-                  className="form-control me-2"
-                  value="" // Empty input initially
-                  onChange={(e) =>
-                    handleDynamicFieldChange(e, "equipmentProvided", 0)
-                  }
-                />
-              </div>
-            )}
-
             {formData.dynamicFields.equipmentProvided.map((value, index) => (
               <div key={index} className="d-flex mb-2">
                 <input
@@ -370,23 +457,8 @@ export default function AddGround() {
             />
           </div>
 
-          {/* Price */}
           <div className="mb-3">
-            <label htmlFor="price" className="form-label text-black">
-              Price (Rs/Hour)
-            </label>
-            <input
-              type="number"
-              className="form-control"
-              id="price"
-              name="price"
-              value={formData.price}
-              onChange={handleInputChange}
-            />
-          </div>
-
-          <div className="mb-3">
-            <label htmlFor="price" className="form-label text-black">
+            <label htmlFor="latitude" className="form-label text-black">
               Latitude
             </label>
             <input
@@ -400,7 +472,7 @@ export default function AddGround() {
           </div>
 
           <div className="mb-3">
-            <label htmlFor="price" className="form-label text-black">
+            <label htmlFor="longitude" className="form-label text-black">
               Longitude
             </label>
             <input
@@ -416,40 +488,31 @@ export default function AddGround() {
           {/* Image Upload */}
           <div className="mb-3">
             <label className="form-label text-black">Upload Images</label>
-
-            {formData.images.length === 0 && (
-              <div className="d-flex mb-2 align-items-center">
-                <input
-                  type="file"
-                  className="form-control me-2"
-                  onChange={(e) => handleImageUpload(e, 0)}
-                />
-              </div>
-            )}
-
             {formData.images.map((image, index) => (
-              <div key={index} className="d-flex mb-2 align-items-center">
+              <div className="mb-3">
+                <label className="form-label text-black">Upload Images</label>
                 <input
                   type="file"
-                  className="form-control me-2"
-                  onChange={(e) => handleImageUpload(e, index)}
+                  multiple
+                  accept="image/*"
+                  className="form-control"
+                  onChange={handleImageChange}
                 />
               </div>
             ))}
-            <button
-              type="button"
-              className="btn btn-primary mt-2"
-              onClick={addImageField}
-            >
-              + Add Image
-            </button>
           </div>
+          <button
+            type="button"
+            className="btn btn-primary mt-2"
+            onClick={addImageField}
+          >
+            + Add Image
+          </button>
 
-          {/* Map */}
           <div className="container w-75">
             <h3 className="text-center">Select Ground Location</h3>
             <div className="w-100">
-              <Map onMapClick={handleMapClick} />
+              <Map />
             </div>
           </div>
 
