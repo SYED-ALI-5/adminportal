@@ -10,29 +10,24 @@ export default function Ground() {
   const [reviews, setReviews] = useState([]);
   const [images, setImages] = useState([]);
   const [pitches, setPitches] = useState([]);
+  const [facilities, setFacilities] = useState([]); // Stadium Facilities
+  const [equipment, setEquipment] = useState([]); // Equipment Provided
 
   useEffect(() => {
     if (location.state && location.state.ground) {
-      setGroundData(location.state.ground);
-      fetchImages(location.state.ground.id);
-      fetchReviews(location.state.ground.id);
-      fetchPitches(location.state.ground.id);
+      const { ground } = location.state;
+
+      // Set ground data and photos directly
+      setGroundData(ground);
+      setImages(ground.photos || []);
+
+      // Fetch dynamic data for pitches, facilities, and equipment
+      fetchReviews(ground.id);
+      fetchPitches(ground.id);
+      fetchFacilities(ground.id);
+      fetchEquipment(ground.id);
     }
   }, [location.state]);
-
-  const fetchImages = async (groundId) => {
-    try {
-      const response = await axios.get(
-        `http://127.0.0.1:8090/ground_detail/groundimages/${groundId}`
-      );
-      const formattedImages = response.data.images.map(
-        (img) => `data:image/jpeg;base64,${img}`
-      );
-      setImages(formattedImages);
-    } catch (error) {
-      console.error("Error fetching images:", error);
-    }
-  };
 
   const fetchReviews = async (groundId) => {
     try {
@@ -53,6 +48,28 @@ export default function Ground() {
       setPitches(response.data || []);
     } catch (error) {
       console.error("Error fetching pitches:", error);
+    }
+  };
+
+  const fetchFacilities = async (groundId) => {
+    try {
+      const response = await axios.get(
+        `http://127.0.0.1:8090/ground_detail/facilities/${groundId}`
+      );
+      setFacilities(response.data.facilities || []);
+    } catch (error) {
+      console.error("Error fetching stadium facilities:", error);
+    }
+  };
+
+  const fetchEquipment = async (groundId) => {
+    try {
+      const response = await axios.get(
+        `http://127.0.0.1:8090/ground_detail/equipment/${groundId}`
+      );
+      setEquipment(response.data.equipment || []);
+    } catch (error) {
+      console.error("Error fetching equipment:", error);
     }
   };
 
@@ -89,6 +106,7 @@ export default function Ground() {
             </div>
           </div>
 
+          {/* Display passed images */}
           <div className="pitch-pictures">
             <div
               id="carouselExampleAutoplaying"
@@ -97,52 +115,50 @@ export default function Ground() {
             >
               <div className="carousel-inner">
                 {images.length > 0 ? (
-                  <>
-                    <div className="carousel-item active">
+                  images.map((img, index) => (
+                    <div
+                      key={index}
+                      className={`carousel-item ${index === 0 ? "active" : ""}`}
+                    >
                       <img
-                        src={images[0]}
+                        src={img}
                         className="d-block w-100"
                         alt="Ground Picture"
                       />
                     </div>
-                    {images.slice(1).map((img, index) => (
-                      <div key={index} className="carousel-item">
-                        <img
-                          src={img}
-                          className="d-block w-100"
-                          alt="Ground Picture"
-                        />
-                      </div>
-                    ))}
-                  </>
+                  ))
                 ) : (
                   <p>No images available</p>
                 )}
               </div>
-              <button
-                className="carousel-control-prev"
-                type="button"
-                data-bs-target="#carouselExampleAutoplaying"
-                data-bs-slide="prev"
-              >
-                <span
-                  className="carousel-control-prev-icon"
-                  aria-hidden="true"
-                ></span>
-                <span className="visually-hidden">Previous</span>
-              </button>
-              <button
-                className="carousel-control-next"
-                type="button"
-                data-bs-target="#carouselExampleAutoplaying"
-                data-bs-slide="next"
-              >
-                <span
-                  className="carousel-control-next-icon"
-                  aria-hidden="true"
-                ></span>
-                <span className="visually-hidden">Next</span>
-              </button>
+              {images.length > 1 && (
+                <>
+                  <button
+                    className="carousel-control-prev"
+                    type="button"
+                    data-bs-target="#carouselExampleAutoplaying"
+                    data-bs-slide="prev"
+                  >
+                    <span
+                      className="carousel-control-prev-icon"
+                      aria-hidden="true"
+                    ></span>
+                    <span className="visually-hidden">Previous</span>
+                  </button>
+                  <button
+                    className="carousel-control-next"
+                    type="button"
+                    data-bs-target="#carouselExampleAutoplaying"
+                    data-bs-slide="next"
+                  >
+                    <span
+                      className="carousel-control-next-icon"
+                      aria-hidden="true"
+                    ></span>
+                    <span className="visually-hidden">Next</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -159,6 +175,7 @@ export default function Ground() {
         </div>
       </div>
 
+      {/* Dynamic Sections */}
       <div className="ground-info">
         <p>Pitch Types</p>
         <div className="pitch-type spacing">
@@ -175,24 +192,26 @@ export default function Ground() {
 
         <p>Stadium Facilities</p>
         <div className="pitch-facility spacing">
-          <span>Canteen</span>
-          <span>Changing Room</span>
-          <span>Toilets</span>
-          <span>Parking</span>
+          {facilities.length > 0 ? (
+            facilities.map((facility, index) => (
+              <span key={index}>{facility.name}</span>
+            ))
+          ) : (
+            <p>No facilities available</p>
+          )}
         </div>
 
         <p>Equipment Provided</p>
         <div className="pitch-equipment spacing-1rem">
-          <span>Football</span>
-          <span>Paddle</span>
-          <span>Bat n Ball</span>
+          {equipment.length > 0 ? (
+            equipment.map((item, index) => <span key={index}>{item.name}</span>)
+          ) : (
+            <p>No equipment provided</p>
+          )}
         </div>
       </div>
 
-      <div className="nav-style">
-        <div className="nav-underline"></div>
-      </div>
-
+      {/* Reviews */}
       <div className="container review pt-3">
         <p className="review-p-heading">Customer Reviews</p>
         <ul>
@@ -211,8 +230,7 @@ export default function Ground() {
                     className={`star ${
                       index < review.rating ? "selected" : ""
                     }`}
-                    onClick={() => handleRatingChange(review.id, index + 1)}
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: "default" }}
                   >
                     ★
                   </span>

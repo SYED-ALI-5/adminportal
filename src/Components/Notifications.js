@@ -3,52 +3,68 @@ import { useNavigate } from "react-router-dom";
 
 export default function Notifications() {
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true); // For showing a loading state
+  const [loading, setLoading] = useState(true); // Loading state
   const navigate = useNavigate();
 
   // Fetch notifications from the backend API
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const response = await fetch("/http://localhost:5000/notifications"); // Replace with your API endpoint
-        if (!response.ok) {
-          throw new Error("Failed to fetch notifications");
-        }
-        const data = await response.json();
-        setNotifications(data);
-      } catch (error) {
-        console.error("Error fetching notifications:", error);
-      } finally {
-        setLoading(false);
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/notifications");
+      if (!response.ok) {
+        throw new Error("Failed to fetch notifications");
       }
-    };
+      const data = await response.json();
+      setNotifications(data);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchNotifications();
   }, []);
 
-  const markAllAsRead = () => {
-    setNotifications((prev) =>
-      prev.map((notification) => ({ ...notification, read: true }))
-    );
-    // Optionally, send a request to update all notifications as read in the backend
+  // Mark all notifications as read
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/notifications/markAllRead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to mark all notifications as read");
+      }
+      // Re-fetch notifications to get the updated status
+      fetchNotifications();
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+    }
+  };
+
+  // Mark a single notification as read
+  const handleNotificationClick = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:5000/notifications/${id}/markRead`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to mark notification as read");
+      }
+      // Re-fetch notifications to get the updated status
+      fetchNotifications();
+
+      // Navigate to a detailed view
+      const selectedNotification = notifications.find((n) => n.id === id);
+      navigate(`/message/${id}`, { state: { notification: selectedNotification } });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
   };
 
   const unreadCount = notifications.filter((notification) => !notification.read).length;
-
-  const handleNotificationClick = (id) => {
-    const selectedNotification = notifications.find(
-      (notification) => notification.id === id
-    );
-
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.id === id ? { ...notification, read: true } : notification
-      )
-    );
-
-    // Navigate to a detailed view
-    navigate(`/message/${id}`, { state: { notification: selectedNotification } });
-  };
 
   if (loading) {
     return <div className="container my-5">Loading notifications...</div>;
