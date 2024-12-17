@@ -8,19 +8,28 @@ export default function EditSpecificGround() {
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
+    address: "",
     description: "",
-    addres: "",
+    latitude: "",
+    longitude: "",
     stadiumFacilities: [],
     equipmentProvided: [],
-    photos: [],
-    pitches: [],
     stadiumType: "",
     sportsHours: "",
     city: "",
     country: "",
-    price: "",
-    latitude: "",
-    longitude: "",
+    photos: [],
+    pitches: [
+      {
+        pitchName: "",
+        pitchDescription: "",
+        length: "",
+        width: "",
+        game_type: "",
+        price_per_60mins: "",
+        price_per_90mins: "",
+      },
+    ],
   });
 
   // Fetch all ground data
@@ -49,21 +58,34 @@ export default function EditSpecificGround() {
 
         // Set all data to form state
         setFormData({
+          ...formData,
           name: groundData.name || "",
           phone: groundData.phone || "",
+          address: groundData.address || "",
           description: groundData.description || "",
-          addres: groundData.addres || "",
-          stadiumFacilities: facilitiesRes.data || [],
-          equipmentProvided: equipmentRes.data || [],
-          photos: imagesRes.data || [], // Assuming this returns Base64 images
-          pitches: pitchesRes.data || [],
-          stadiumType: groundData.stadiumType || "",
-          sportsHours: groundData.sportsHours || "",
-          city: groundData.city || "",
-          country: groundData.country || "",
-          price: groundData.price || "",
           latitude: groundData.latitude || "",
           longitude: groundData.longitude || "",
+          stadiumType: groundData.stadiumType || "",
+          city: groundData.city || "",
+          country: groundData.country || "",
+          sportsHours: groundData.sportsHours || "",
+          photos: imagesRes.data.map((img) => img.url) || [], // Assuming each image has a URL
+          pitches:
+            pitchesRes.pitches.length > 0
+              ? pitchesRes.pitches
+              : [
+                  {
+                    pitchName: "",
+                    pitchDescription: "",
+                    length: "",
+                    width: "",
+                    game_type: "",
+                    price_per_60mins: "",
+                    price_per_90mins: "",
+                  },
+                ],
+          stadiumFacilities: facilitiesRes.data || [],
+          equipmentProvided: equipmentRes.data || [],
         });
       } catch (error) {
         console.error("Error fetching ground details:", error);
@@ -73,32 +95,56 @@ export default function EditSpecificGround() {
     fetchData();
   }, [id]);
 
-  // Handle input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  // Handle dynamic fields like stadium facilities, equipment, and pitches
-  const handleDynamicFieldChange = (field, index, value) => {
-    const updatedFields = [...formData[field]];
-    updatedFields[index] = value;
-    setFormData({ ...formData, [field]: updatedFields });
+  const handlePitchChange = (index, e) => {
+    const { name, value } = e.target;
+    const updatedPitches = [...formData.pitches];
+    updatedPitches[index][name] = value;
+    setFormData({ ...formData, pitches: updatedPitches });
   };
 
-  // Add new dynamic fields
-  const addDynamicField = (field) => {
+  const addPitchField = () => {
+    setFormData((prevState) => ({
+      ...prevState,
+      pitches: [
+        ...prevState.pitches,
+        {
+          pitchName: "",
+          pitchDescription: "",
+          length: "",
+          width: "",
+          game_type: "",
+          price_per_60mins: "",
+          price_per_90mins: "",
+        },
+      ],
+    }));
+  };
+
+  // Add and Update Facilities/Equipment
+  const handleArrayChange = (e, index, field) => {
+    const updatedArray = [...formData[field]];
+    updatedArray[index] = e.target.value;
+    setFormData({ ...formData, [field]: updatedArray });
+  };
+
+  const addToArray = (field) => {
     setFormData({ ...formData, [field]: [...formData[field], ""] });
   };
 
-  // Handle image uploads
   const handleImageUpload = (e, index) => {
-    const updatedPhotos = [...formData.photos];
-    updatedPhotos[index] = e.target.files[0];
-    setFormData({ ...formData, photos: updatedPhotos });
+    const file = e.target.files[0];
+    if (file) {
+      const updatedPhotos = [...formData.photos];
+      updatedPhotos[index] = file; // Add the new file object
+      setFormData({ ...formData, photos: updatedPhotos });
+    }
   };
 
-  // Add new image field
   const addImageField = () => {
     setFormData({ ...formData, photos: [...formData.photos, null] });
   };
@@ -112,7 +158,7 @@ export default function EditSpecificGround() {
         name: formData.name,
         phone: formData.phone,
         description: formData.description,
-        addres: formData.addres,
+        address: formData.address,
         stadiumType: formData.stadiumType,
         sportsHours: formData.sportsHours,
         city: formData.city,
@@ -134,16 +180,16 @@ export default function EditSpecificGround() {
 
       const photosInBase64 = await Promise.all(
         formData.photos.map(async (photo) => {
-          if (typeof photo === "object") {
-            return await toBase64(photo); // Convert File Object to Base64
+          if (photo instanceof File) {
+            return await toBase64(photo); // Convert new files to Base64
           }
-          return photo; // Return existing Base64 string or URL as is
+          return photo; // Existing URLs remain unchanged
         })
       );
 
       // 4. Update Ground Images Table
       await axios.put(`/api/groundimages/${id}`, {
-        images: photosInBase64, // Send Base64-encoded images
+        images: photosInBase64, // New files as Base64 + Existing URLs
       });
 
       // 5. Update Pitches Table
@@ -212,17 +258,17 @@ export default function EditSpecificGround() {
             onChange={handleInputChange}
           ></textarea>
         </div>
-        {/* Addres */}
+        {/* address */}
         <div className="mb-3">
-          <label htmlFor="addres" className="form-label text-black">
-            Addres
+          <label htmlFor="address" className="form-label text-black">
+            address
           </label>
           <input
             type="text"
             className="form-control"
-            id="addres"
-            name="addres"
-            value={formData.addres}
+            id="address"
+            name="address"
+            value={formData.address}
             onChange={handleInputChange}
           />
         </div>
@@ -332,14 +378,14 @@ export default function EditSpecificGround() {
         <div className="d-flex flex-column">
           <label className="form-label text-black">Stadium Facilities</label>
 
-          {formData.dynamicFields.stadiumFacilities.map((value, index) => (
+          {formData.stadiumFacilities.map((item, index) => (
             <div key={index} className="d-flex mb-2">
               <input
                 type="text"
                 className="form-control me-2"
-                value={formData.dynamicFields.stadiumFacilities[index]}
+                value={item}
                 onChange={(e) =>
-                  handleDynamicFieldChange(e, "stadiumFacilities", index)
+                  handleArrayChange(e, index, "stadiumFacilities")
                 }
               />
             </div>
@@ -348,7 +394,7 @@ export default function EditSpecificGround() {
         <button
           type="button"
           className="mb-3 btn btn-primary"
-          onClick={() => addDynamicField("stadiumFacilities")}
+          onClick={() => addToArray("stadiumFacilities")}
         >
           + Add
         </button>
@@ -357,14 +403,14 @@ export default function EditSpecificGround() {
         <div className="d-flex flex-column">
           <label className="form-label text-black">Equipment Provided</label>
 
-          {formData.dynamicFields.equipmentProvided.map((value, index) => (
+          {formData.equipmentProvided.map((item, index) => (
             <div key={index} className="d-flex mb-2">
               <input
                 type="text"
                 className="form-control me-2"
-                value={formData.dynamicFields.equipmentProvided[index]}
+                value={item}
                 onChange={(e) =>
-                  handleDynamicFieldChange(e, "equipmentProvided", index)
+                  handleArrayChange(e, index, "equipmentProvided")
                 }
               />
             </div>
@@ -373,7 +419,7 @@ export default function EditSpecificGround() {
         <button
           type="button"
           className="mb-3 btn btn-primary"
-          onClick={() => addDynamicField("equipmentProvided")}
+          onClick={() => addToArray("equipmentProvided")}
         >
           + Add
         </button>
