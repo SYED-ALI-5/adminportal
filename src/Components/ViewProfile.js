@@ -1,3 +1,5 @@
+// Done
+
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { FaEye, FaMapMarkerAlt } from "react-icons/fa";
@@ -151,14 +153,16 @@ export default function ViewProfile() {
 
       <div className="d-flex flex-row justify-content-center align-items-center my-4">
         <button
-          onClick={() =>
+          onClick={() => {
             navigate("/bookinghistory", {
               state: {
-                id: userData?.id, // Pass user id
                 type: userData?.isGroundOwner ? "groundOwner" : "customer", // Determine user type
+                ...(userData?.isGroundOwner
+                  ? { groundId: userData?.groundId } // Pass groundId for ground owner
+                  : { email: userData?.email }), // Pass email for customer
               },
-            })
-          }
+            });
+          }}
           type="button"
           className="btn btn-success d-flex flex-row justify-content-between align-items-center my-1 text-center"
         >

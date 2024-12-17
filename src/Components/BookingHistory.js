@@ -1,24 +1,33 @@
+// Done
+
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import auth_bg from "../Assets/Owner_Auth_Bg.png";
 
 export default function BookingHistory() {
   const location = useLocation();
-  const { id, type } = location.state; // Extract user info passed from ViewProfile
+  const { id, type, email, groundId } = location.state || {}; // Retrieve user data from state
+  const isGroundOwner = type === "groundOwner";
 
+  // Error handling for missing required data
+  if (!type || (!email && !groundId)) {
+    return <div>Error: Missing required data for booking history.</div>;
+  }
+
+  // State to hold booking data
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchBookingHistory = async () => {
       try {
-        const response = await fetch(
-          `/api/booking-history?id=${id}&type=${type}`
-        );
-        if (!response.ok) {
-          throw new Error("Failed to fetch booking history");
-        }
+        // Determine the query parameter based on the user type
+        const queryParam = isGroundOwner
+          ? `groundId=${groundId}`
+          : `email=${email}`;
 
+        // Fetch booking history from the server for the specific user
+        const response = await fetch(`/api/bookings?${queryParam}`);
         const bookings = await response.json();
         setData(bookings);
       } catch (error) {
@@ -28,16 +37,30 @@ export default function BookingHistory() {
       }
     };
 
-    fetchBookingHistory();
-  }, [id, type]);
+    if (isGroundOwner ? groundId : email) {
+      fetchBookingHistory();
+    } else {
+      setLoading(false); // No ID or email, no data to fetch
+    }
+  }, [email, groundId, isGroundOwner]);
 
   if (loading) {
-    return <div className="text-center my-5">Loading booking history...</div>;
+    return <div>Loading...</div>;
   }
 
   return (
-    <div style={{ backgroundImage: `url(${auth_bg})` }}>
-      <h2 style={{ color: "rgb(57 171 148)" }} className="py-5 text-center">
+    <div
+      style={{
+        backgroundImage: `url(${auth_bg})`,
+      }}
+    >
+      <h1 style={{ color: "rgb(57 171 148)" }} className="pt-5 text-center">
+        {isGroundOwner ? "Ground Owner" : "Customer"}
+      </h1>
+      <h2
+        style={{ color: "rgb(57 171 148)" }}
+        className="pt-3 pb-5 text-center"
+      >
         Booking History
       </h2>
       <div className="container d-flex flex-column align-items-center justify-content-center pb-5">
@@ -55,60 +78,75 @@ export default function BookingHistory() {
               <div className="user-details">
                 <div className="user-specific">
                   <span className="py-2">
-                    <b>
-                      {type === "groundOwner"
-                        ? "Customer Name"
-                        : "Ground Owner Name"}
-                      :&nbsp;&nbsp;
-                    </b>
-                    {item.customer_name || item.owner_name}
+                    <b>Ground Owner Name :&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b>
+                    {item.ownerName}
                   </span>
                 </div>
-                <div>
+                <div className="user-specific">
                   <span>
-                    <b>Email:&nbsp;&nbsp;</b>
+                    <b>Owner Phone Number:&nbsp;&nbsp;</b>
+                    {item.ownerPhone}
+                  </span>
+                </div>
+                <div className="user-specific">
+                  <span className="py-2">
+                    <b>Customer Name :&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b>
+                    {item.customerName}
+                  </span>
+                </div>
+                <div className="user-specific">
+                  <span>
+                    <b>Customer Phone Number:&nbsp;&nbsp;</b>
+                    {item.customerPhone}
+                  </span>
+                </div>
+                <div className="user-specific">
+                  <span className="py-2">
+                    <b>Email:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b>
                     {item.email}
                   </span>
                 </div>
                 <div>
                   <span>
-                    <b>Phone Number:&nbsp;&nbsp;</b>
-                    {item.phone}
-                  </span>
-                </div>
-                <div>
-                  <span>
-                    <b>Booking Time:&nbsp;&nbsp;</b>
+                    <b>Booking Time:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b>
                     {item.time}
                   </span>
                 </div>
                 <div>
                   <span>
-                    <b>Booking Date:&nbsp;&nbsp;</b>
+                    <b>Booking Date:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b>
                     {item.date}
                   </span>
                 </div>
-                {!type === "groundOwner" && item.stadium && (
+                {!isGroundOwner && item.stadium && (
                   <div>
                     <span>
-                      <b>Stadium Name:&nbsp;&nbsp;</b>
+                      <b>
+                        Stadium Name:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                      </b>
                       {item.stadium}
                     </span>
                   </div>
                 )}
-                {!type === "groundOwner" && item.location && (
+                {!isGroundOwner && item.location && (
                   <div>
                     <span>
-                      <b>Location:&nbsp;&nbsp;</b>
+                      <b>Location:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b>
                       {item.location}
                     </span>
                   </div>
                 )}
+                <div>
+                  <span>
+                    <b>Payment Status:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</b>
+                    {item.status}
+                  </span>
+                </div>
               </div>
             </div>
           ))
         ) : (
-          <div>No booking history found.</div>
+          <div style={{ color: "white" }}>No booking history available.</div>
         )}
       </div>
     </div>

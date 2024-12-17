@@ -1,3 +1,5 @@
+// Done
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaMapMarkerAlt } from "react-icons/fa";
@@ -6,13 +8,33 @@ import axios from "axios";
 export default function EditGround() {
   const navigate = useNavigate();
   const [groundData, setGroundData] = useState([]);
+  const [groundImages, setGroundImages] = useState({}); // Store Base64 images for each ground
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch data from the database
   useEffect(() => {
     axios
-      .get("/api/grounds") // Update this endpoint based on your backend API
-      .then((response) => setGroundData(response.data))
+      .get("/api/grounds") // API to fetch ground data
+      .then((response) => {
+        setGroundData(response.data);
+        // Fetch images for all grounds
+        response.data.forEach((ground) => {
+          axios
+            .get(`/api/groundimages?groundId=${ground.id}`) // API to fetch Base64 images for each ground
+            .then((imageResponse) => {
+              setGroundImages((prevState) => ({
+                ...prevState,
+                [ground.id]: imageResponse.data, // Map ground ID to its Base64 images
+              }));
+            })
+            .catch((error) =>
+              console.error(
+                `Error fetching images for ground ${ground.id}:`,
+                error
+              )
+            );
+        });
+      })
       .catch((error) => console.error("Error fetching grounds:", error));
   }, []);
 
@@ -50,7 +72,7 @@ export default function EditGround() {
           className="ground-data my-3 px-5 py-3 w-50 d-flex flex-row justify-content-start align-items-center"
         >
           <img
-            src={ground.photo[0]} // Use database image URL
+            src={`data:image/jpeg;base64,${groundImages[ground.id]?.[0] || ""}`} // Use Base64 image
             className="image-ground-selection"
             alt="Ground"
           />
